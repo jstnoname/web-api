@@ -147,6 +147,13 @@ public class UsersController : Controller
         Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(paginationHeader));
         return Ok(page);
     }
+
+    [HttpOptions]
+    public IActionResult GetUsersOptions()
+    {
+        Response.Headers.Add("Allow", "GET, POST, OPTIONS");
+        return Ok();
+    }
 }
 
 public class CreatedUserDto
