@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using AutoMapper;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.MinimalApi.Domain;
 using WebApi.MinimalApi.Models;
@@ -42,11 +43,34 @@ public class UsersController : Controller
         }
         
         var userEntity = mapper.Map<UserEntity>(user);
-        userRepository.Insert(userEntity);
+        var insertedUser = userRepository.Insert(userEntity);
         return CreatedAtRoute(
             nameof(GetUserById),
-            new { userId = userEntity.Id },
-            userEntity.Id);
+            new { userId = insertedUser.Id },
+            insertedUser.Id);
+    }
+
+    [HttpPut("{userId}")]
+    [Produces("application/json", "application/xml")]
+    public IActionResult UpdateUser([FromRoute] Guid userId, [FromBody] PostUserDto? user)
+    {
+        if (user == null || userId == Guid.Empty) 
+            return BadRequest();
+        if (!ModelState.IsValid)
+        {
+            ModelState.AddModelError("Login", "Invalid login");
+            return UnprocessableEntity(ModelState);
+        }
+
+        var userRepoEntity = userRepository.FindById(userId) ?? new UserEntity(userId);
+        var mappedUser = mapper.Map(user, userRepoEntity);
+        userRepository.UpdateOrInsert(mappedUser, out var isInserted);
+        if (isInserted)
+            return CreatedAtRoute(
+                nameof(GetUserById),
+                new { userId = mappedUser.Id },
+                mappedUser.Id);
+        return NoContent();
     }
 }
 
@@ -57,5 +81,16 @@ public class CreatedUserDto
     [DefaultValue("John")]
     public string FirstName { get; set; }
     [DefaultValue("Doe")]
+    public string LastName { get; set; }
+}
+
+public class PostUserDto
+{
+    [Required]
+    [RegularExpression("^[0-9\\p{L}]*$", ErrorMessage = "Login should contain only letters or digits")]
+    public string Login { get; set; }
+    [Required]
+    public string FirstName { get; set; }
+    [Required]
     public string LastName { get; set; }
 }
